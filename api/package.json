@@ -7,8 +7,9 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
+    "@azure/cognitiveservices-customvision-prediction": "^5.1.2",
+    "@azure/ms-rest-js": "^2.6.1",
     "@line/bot-sdk": "^7.4.0",
     "dotenv": "^16.0.0"
-  },
-  "devDependencies": {}
+  }
 }
