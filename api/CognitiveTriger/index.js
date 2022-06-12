@@ -1,5 +1,5 @@
 const line = require('@line/bot-sdk');
-const querystring = require('querystring');
+const fs = require('fs');
 require('dotenv').config()
 
 const env = process.env
@@ -15,33 +15,19 @@ module.exports = async function (context, req) {
 
     if (req.query.message || (req.body && req.body.events)) {
         if (req.body && req.body.events[0]) {
-            // 送られてきた画像データを取得
-            var messageId = req.body.events[0].message.id;
-            var imgData = '';
-            context.log.warn('ID---', messageId);
-            client.getMessageContent(messageId)
-                .then((stream) => {
-                    stream.on('data', (chunk) => {
-                        context.log.warn('ed--', messageId);
-                        imgData += chunk;
-                        context.log.warn('BufferオブジェクトのchunkをimgDataに格納：', imgData);
-                    });
-                    stream.on('error', (err) => {
-                        // error handling
-                        context.log.warn('error------',err);
-                    });
-                });
-            var imgJson = querystring.parse(imgData);
-            context.log.warn('Bufferオブジェクトのイメージデータ',imgData);
-            context.log.warn('stringオブジェクトにしたデータ',imgJson);
+            const event = req.body.events[0]
+            // 送信された画像を取得する処理
+            const downloadPath = 'Image/qr.png';
+            let savedPath = await downloadContent(event.message.id, downloadPath);
+            // await sample(event.message.id, downloadPath)
+            // 取得した画像をCognitiveに投げて、検知結果を貰う処理
+
+            // 検知結果をリプライする処理
+
             var message = {
-                type: "image",
-                contentType: req.body.events[0].message.contentProvider.type,
-                id: req.body.events[0].message.id,
-                originalContentUrl: req.body.events[0].message.contentProvider.originalContentUrl,
-                previewImageUrl: req.body.events[0].message.contentProvider.previewImageUrl
+                type: 'text',
+                text: `${savedPath}として保存しました。`
             }
-            context.log.warn(JSON.stringify(message));
             if (req.body.events[0].replyToken) {
                 client.replyMessage(req.body.events[0].replyToken, message);
             }
@@ -60,3 +46,32 @@ module.exports = async function (context, req) {
         };
     };
 };
+
+function downloadContent(messageId, downloadPath) {
+    return client.getMessageContent(messageId)
+      .then((stream) => new Promise((resolve, reject) => {
+        const writable = fs.createWriteStream(downloadPath);
+        stream.pipe(writable);
+        stream.on('end', () => {
+            const url = fs.readFileSync(downloadPath, { encoding: "base64" });
+            resolve(url)
+        });
+        stream.on('error', reject);
+    }));
+}
+
+function sample(messageId, downloadPath) {
+    client.getMessageContent(messageId)
+    .then((stream) => {
+        const dest = fs.createWriteStream(downloadPath);
+        stream.on('data', (chunk) => {
+          dest.write(chunk)
+        });
+        stream.on('error', (err) => {
+        });
+        stream.on('end', () => {
+            const url = fs.readFileSync(downloadPath, { encoding: "base64" });
+            return url
+        });
+      });
+}
